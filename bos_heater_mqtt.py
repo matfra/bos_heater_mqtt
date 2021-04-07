@@ -11,6 +11,7 @@ import telnetlib
 import subprocess
 import socket
 import json
+from logzero import loglevel
 from logzero import logger
 import toml
 import shutil
@@ -20,7 +21,11 @@ def call_bos_api(request_dict, hostname="127.0.0.1", port=4028):
     Talk to bosminer API and returns a dict of the response
     """
     logger.debug("bos_api: connecting")
-    tn = telnetlib.Telnet(hostname, port)
+    try:
+        tn = telnetlib.Telnet(hostname, port)
+    except ConnectionRefusedError:
+        logger.warning("bosminer doesn't seem to have started yet. If this persist. Check system logs")
+        return {}
     request=json.dumps(request_dict) + '\n'
     logger.debug("bos_api: sending " + request)
     tn.write(request.encode('utf-8'))
@@ -54,7 +59,7 @@ def get_bos_temps(hostname="127.0.0.1", port=4028):
     temps = call_bos_api({"command": "temps"})
     max_board_temp = 0
     max_chip_temp = 0
-    for board in temps['TEMPS']:
+    for board in temps.get('TEMPS', {}):
         board_temp=board.get("Board", 0)
         chip_temp=board.get("Chip", 0)
         if board_temp > max_board_temp:
@@ -88,6 +93,8 @@ def main(args):
 
     client.connect(args.mqtt_broker_host, args.mqtt_broker_port, 60)
 
+    # TODO handle is_idle
+    is_idle = False
     run_bosminer_with_profile(current_profile)
 
 
@@ -101,8 +108,8 @@ def main(args):
         """     mode_command_topic: "bosminer_mqtt/ant-sofa-window/mode/set"
                 fan_mode_command_topic: "bosminer_mqtt/ant-sofa-window/fan/set"
         """
-        board_temp, chip_temp = get_bos_temps()
-        if board_temp > 0 and chip_temp > 0:
+        if is_idle is False:
+            board_temp, chip_temp = get_bos_temps()
             client.publish(f"{mqtt_prefix}/status", "heat")
             client.publish(f"{mqtt_prefix}/status/current_profile", current_profile)
             client.publish(f"{mqtt_prefix}/status/board_temperature", board_temp)
@@ -221,8 +228,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     if args.verbose is True:
-        logger.loglevel(level=10)
+        loglevel(level=10)
     else:
-        logger.loglevel(level=20)
+        loglevel(level=20)
 
     main(args)
