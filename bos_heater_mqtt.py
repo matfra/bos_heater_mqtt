@@ -85,6 +85,8 @@ def on_connect(client, userdata, flags, rc, topic):
 # The callback for when a PUBLISH message is received from the server.
 def on_message(client, userdata, msg):
     logger.debug(msg.payload)
+
+
     try: 
         dict_payload=json.loads(msg.payload)
     except json.decoder.JSONDecodeError:
@@ -107,7 +109,7 @@ def get_bos_temps(hostname="127.0.0.1", port=4028):
     return max_board_temp, max_chip_temp
 
 def run_bosminer_with_profile(profile):
-    shutil.copy(f"/tmp/{profile}_profile.toml", "/etc/bosminer.toml"
+    shutil.copy(f'/tmp/{profile}_profile.toml', "/etc/bosminer.toml")
     subprocess.run(['/etc/init.d/bosminer', 'restart'])
 
 def main(args):
