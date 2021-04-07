@@ -120,9 +120,9 @@ def parse_profile(profile=""):
     check_value(int(f1), 170, 900, True)
     check_value(int(f2), 170, 900, True)
     check_value(int(f3), 170, 900, True)
-    check_value(float(v1), 7.96, 9.1, True)
-    check_value(float(v2), 7.96, 9.1, True)
-    check_value(float(v3), 7.96, 9.1, True)
+    check_value(float(v1), 7.95, 9.1, True)
+    check_value(float(v2), 7.95, 9.1, True)
+    check_value(float(v3), 7.95, 9.1, True)
     check_value(int(fan_speed), 30, 100, False)
 
     return {
@@ -199,9 +199,9 @@ if __name__ == "__main__":
     parser.add_argument("-m", "--mqtt-broker-host", required=True, type=str)
     parser.add_argument("-p", "--mqtt-broker-port", default=1883, type=int)
     parser.add_argument("-t", "--mqtt-topic", default="bosminer_mqtt", type=str)
-    parser.add_argument("-l", "--low-profile", required=False, help="fan_speed,freq1,volt1,freq2,volt2,freq3,volt3 Example: 45,170,7.91,0,0,170,7.91", type=str)
-    parser.add_argument("-n", "--normal-profile", required=True, help="fan_speed,freq1,volt1,freq2,volt2,freq3,volt3 Example: 60,230,7.91,230,7.91,230,7.91", type=str)
-    parser.add_argument("-c", "--high-profile", required=False, help="fan_speed,freq1,volt1,freq2,volt2,freq3,volt3 Example: 100,270,7.91,270,7.91,270,7.91", type=str)
+    parser.add_argument("-l", "--low-profile", required=False, help="fan_speed,freq1,volt1,freq2,volt2,freq3,volt3 Example: 45,170,7.95,0,0,170,7.95", type=str)
+    parser.add_argument("-n", "--normal-profile", required=True, help="fan_speed,freq1,volt1,freq2,volt2,freq3,volt3 Example: 60,230,7.95,230,7.95,230,7.95", type=str)
+    parser.add_argument("-c", "--high-profile", required=False, help="fan_speed,freq1,volt1,freq2,volt2,freq3,volt3 Example: 100,270,7.95,270,7.95,270,7.95", type=str)
     parser.add_argument("-a", "--pool-address", default="stratum+tcp://stratum.slushpool.com:3333", type=str)
     parser.add_argument("-u", "--pool-username", required=True, type=str)
 
@@ -209,9 +209,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "-v",
         "--verbose",
-        action="count",
-        default=0,
-        help="Verbosity (-v, -vv, etc)")
+        action="store_true",
+        default=False,
+        help="Debug verbosity")
 
     # Specify output of "--version"
     parser.add_argument(
@@ -220,4 +220,9 @@ if __name__ == "__main__":
         version="%(prog)s (version {version})".format(version=__version__))
 
     args = parser.parse_args()
+    if args.verbose is True:
+        logger.loglevel(level=10)
+    else:
+        logger.loglevel(level=20)
+
     main(args)
