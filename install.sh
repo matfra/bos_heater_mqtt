@@ -1,12 +1,16 @@
 #!/bin/sh -ex
 INSTALL_DIR="/root"
 
-echo "Installing Python"
-opkg update
-opkg install python3 python3-pip
+if [[ $1 == '-u' ]] ; then
+    echo "Skip Python install"
+else
+    echo "Installing Python"
+    opkg update
+    opkg install python3 python3-pip
 
-echo "Installing dependencies"
-pip3 install -r https://raw.githubusercontent.com/matfra/bos_heater_mqtt/main/requirements.txt
+    echo "Installing dependencies"
+    pip3 install -r https://raw.githubusercontent.com/matfra/bos_heater_mqtt/main/requirements.txt
+fi
 
 echo "Downloading/Updating the bos_miner_mqtt"
 wget https://raw.githubusercontent.com/matfra/bos_heater_mqtt/main/bos_heater_mqtt.py -O $INSTALL_DIR/bos_heater_mqtt.py

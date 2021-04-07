@@ -11,11 +11,12 @@ To install, on the antminer, after installing BraiinsOS
 
 # Run the installer
 ```
-$ sh -c "$(wget https://raw.githubusercontent.com/matfra/bos_heater_mqtt/main/install.sh -O -)"
+# sh -c "$(wget https://raw.githubusercontent.com/matfra/bos_heater_mqtt/main/install.sh -O -)"
 ```
 
 # Home-assistant configuration
-First, we will need to make sure that you have a temperature sensor that is published on your MQTT server. There is a trick, you can publish any already existing temperature sensor to MQTT using home assistant itself
+First, we will need to make sure that you have a temperature sensor that is published on your MQTT server. There is a trick, you can publish any already existing temperature sensor to MQTT using home assistant itself.
+
 Example of automation.yaml file to do just that:
 ```
 - alias: publish_ble_temperature_livingroom
