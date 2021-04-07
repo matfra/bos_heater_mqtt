@@ -1,49 +1,4 @@
 #!/usr/bin/env python3
-"""
-Expose a Braiins OS miner as a heater in Home-Assistant using hvac MQTT
-Warning: You will need to have an independent/third paty temperature sensor
-as there are no temperature sensor reflecting room temperature inside the AntMiner
-
-
-To install, on the antminer, after installing bosminer:
-# Install Python
-opkg update ; opkg install python3 python3-pip
-pip3 install paho-mqtt
-# Download this file
-wget <this file>
-# Make this file executable
-chmod +x <this file>
-# Auto start bosminer_mqtt_controller
-ln -s $(pwd)/thisfile /etc/rc.d/S99bosminer_mqtt_controller
-
-
-Exampe configuration in home-assistant:
-First, we will need to make sure you have temperature data from a third party sensor available on MQTT
-You can use home assistant automations to publish existing sensor data to MQTT
-Example of automation.yaml file:
-- alias: publish_ble_temperature_livingroom
-  trigger:
-    - platform: time_pattern
-      seconds: "/20"
-  action:
-    service: mqtt.publish
-    data: {"payload": "{{ states('sensor.ble_temperature_livingroom') }}", "topic": "sensors/ble_temperature_livingroom", "qos": 0, "retain": 0}
-
-
-climate:
-  - platform: mqtt
-    name: miner
-    modes:
-      - "idle"
-      - "heat"
-    fan_modes:
-      - "high"
-      - "medium"
-      - "low"
-    mode_command_topic: "bosminer_mqtt/ant-sofa-window/mode/set"
-    temperature_command_topic: "bosminer_mqtt/ant-sofa-window/temperature/set"
-    fan_mode_command_topic: "bosminer_mqtt/ant-sofa-window/fan/set"
-"""
 
 __author__ = "Mathieu Frappier"
 __version__ = "0.1.0"
