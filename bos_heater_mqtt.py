@@ -116,7 +116,7 @@ def parse_profile(profile=""):
     }
 
 
-def generate_bosminer_conf(pool_address, pool_username, profile_dict):
+def generate_bosminer_conf(pool_address, pool_username, profile_dict, min_fans):
     config = {
         'format': {
             'version': '1.2+',
@@ -140,7 +140,7 @@ def generate_bosminer_conf(pool_address, pool_username, profile_dict):
             '7': {'enabled': profile_dict["board2"]["enabled"], 'frequency': profile_dict["board2"]["freq"], 'voltage': profile_dict["board2"]["voltage"]},
             '8': {'enabled': profile_dict["board3"]["enabled"], 'frequency': profile_dict["board3"]["freq"], 'voltage': profile_dict["board3"]["voltage"]}
         },
-        'fan_control': {'speed': profile_dict["fan_speed"]}
+        'fan_control': {'speed': profile_dict["fan_speed"], 'min_fans': min_fans}
     }
     toml_config=toml.dumps(config)
     return toml_config
@@ -152,22 +152,23 @@ def generate_all_conf(args) -> []:
     """
     pool_address = args.pool_address
     pool_username = args.pool_username
+    min_fans = args.fans
     available_profiles = []
     if args.low_profile:
         with open ("/tmp/low_profile.toml", "w") as f:
-            low_config = generate_bosminer_conf(pool_address, pool_username, parse_profile(args.low_profile))
+            low_config = generate_bosminer_conf(pool_address, pool_username, parse_profile(args.low_profile), min_fans)
             logger.debug("Generated config for profile low:\n{}".format(low_config))
             f.write(low_config)
         available_profiles.append("low")
     if args.normal_profile:
         with open ("/tmp/normal_profile.toml", "w") as f:
-            normal_config = generate_bosminer_conf(pool_address, pool_username, parse_profile(args.normal_profile))
+            normal_config = generate_bosminer_conf(pool_address, pool_username, parse_profile(args.normal_profile), min_fans)
             logger.debug("Generated config for profile normal:\n{}".format(normal_config))
             f.write(normal_config)
         available_profiles.append("normal")
     if args.high_profile:
         with open ("/tmp/high_profile.toml", "w") as f:
-            high_config = generate_bosminer_conf(pool_address, pool_username, parse_profile(args.high_profile))
+            high_config = generate_bosminer_conf(pool_address, pool_username, parse_profile(args.high_profile), min_fans)
             logger.debug("Generated config for profile high:\n{}".format(high_config))
             f.write(high_config)
         available_profiles.append("high")
@@ -244,6 +245,7 @@ if __name__ == "__main__":
     parser.add_argument("-a", "--pool-address", default="stratum+tcp://stratum.slushpool.com:3333", type=str)
     parser.add_argument("-u", "--pool-username", required=True, type=str)
     parser.add_argument("-s", "--start-profile", required=False, help="name of the profile to start at boot. Default to off", type=str, default="off")
+    parser.add_argument("-f", "--fans", required=False, default=1, type=int)
 
     # Optional verbosity counter (eg. -v, -vv, -vvv, etc.)
     parser.add_argument(
