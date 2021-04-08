@@ -83,13 +83,9 @@ def get_bos_temps(hostname="127.0.0.1", port=4028):
 
 
 def run_bosminer_with_profile(profile):
-    if profile == "off":
-        subprocess.run(['/etc/init.d/bosminer', 'stop'])
-        subprocess.run(['/etc/init.d/bosminer_monitor', 'stop'])
-    else:
-        shutil.copy(f'/tmp/{profile}_profile.toml', "/etc/bosminer.toml")
-        subprocess.run(['/etc/init.d/bosminer', 'restart'])
-        subprocess.run(['/etc/init.d/bosminer_monitor', 'restart'])
+    shutil.copy(f'/tmp/{profile}_profile.toml', "/etc/bosminer.toml")
+    subprocess.run(['/etc/init.d/bosminer', 'restart'])
+    subprocess.run(['/etc/init.d/bosminer_monitor', 'restart'])
     global current_profile
     logger.debug(f"Updating current profile from {current_profile} to {profile}")
     current_profile=profile
@@ -136,9 +132,9 @@ def generate_bosminer_conf(pool_address, pool_username, profile_dict, min_fans):
             }
         ],
         'hash_chain': {
-            '6': {'enabled': profile_dict["board1"]["enabled"], 'frequency': profile_dict["board1"]["freq"], 'voltage': profile_dict["board1"]["voltage"]},
-            '7': {'enabled': profile_dict["board2"]["enabled"], 'frequency': profile_dict["board2"]["freq"], 'voltage': profile_dict["board2"]["voltage"]},
-            '8': {'enabled': profile_dict["board3"]["enabled"], 'frequency': profile_dict["board3"]["freq"], 'voltage': profile_dict["board3"]["voltage"]}
+            '6': {'enabled': True, 'frequency': profile_dict["board1"]["freq"], 'voltage': profile_dict["board1"]["voltage"]} if profile_dict["board1"]["enabled"] == True else {'enabled': False},
+            '7': {'enabled': True, 'frequency': profile_dict["board2"]["freq"], 'voltage': profile_dict["board2"]["voltage"]} if profile_dict["board2"]["enabled"] == True else {'enabled': False},
+            '8': {'enabled': True, 'frequency': profile_dict["board3"]["freq"], 'voltage': profile_dict["board3"]["voltage"]} if profile_dict["board3"]["enabled"] == True else {'enabled': False}
         },
         'fan_control': {'speed': profile_dict["fan_speed"], 'min_fans': min_fans}
     }
@@ -172,6 +168,12 @@ def generate_all_conf(args) -> []:
             logger.debug("Generated config for profile high:\n{}".format(high_config))
             f.write(high_config)
         available_profiles.append("high")
+    with open ("/tmp/off_profile.toml", "w") as f:
+        off_config = generate_bosminer_conf(pool_address, pool_username, parse_profile("30,0,0,0,0,0,0"), min_fans)
+        logger.debug("Generated config for profile off")
+        f.write(off_config)
+    available_profiles.append("off")
+ 
     return available_profiles
 
 
@@ -182,7 +184,6 @@ def main(args):
     hostname = socket.gethostname()
     logger.info("Parsing profiles")
     available_profiles = generate_all_conf(args)
-    available_profiles.append("off")
 
     start_profile = args.start_profile
     if start_profile not in available_profiles:

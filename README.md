@@ -62,3 +62,8 @@ climate:
     away_temp: 12
 ```
 
+## TODO
+- Implement off
+- Implement auto
+- Catch reboot signal properly
+- Better install for the service
