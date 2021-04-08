@@ -16,6 +16,9 @@ from logzero import logger
 import toml
 import shutil
 
+# Global variable
+current_profile=""
+
 def call_bos_api(request_dict, hostname="127.0.0.1", port=4028):
     """
     Talk to bosminer API and returns a dict of the response
@@ -38,21 +41,31 @@ def call_bos_api(request_dict, hostname="127.0.0.1", port=4028):
         return {}
 
 # The callback for when the client receives a CONNACK response from the server.
-def on_connect(client, userdata, flags, rc, topic):
+def on_connect(client, userdata, flags, rc, topics):
     logger.info("Connected to MQTT server with result code "+str(rc))
-    client.subscribe(topic)
+    for t in topics:
+        client.subscribe(t)
+        logger.info("Subscribed to topic " +str(t))
 
 # The callback for when a PUBLISH message is received from the server.
-def on_message(client, userdata, msg):
-    logger.debug(msg.payload)
-
-
-    try: 
-        dict_payload=json.loads(msg.payload)
-    except json.decoder.JSONDecodeError:
-        logger.warning("Invalid MQTT message received: " + str(msg.payload))
-        return
-    logger.debug(call_bos_api(dict_payload))
+def on_message(client, userdata, msg, mode_topic, fan_topic, available_profiles):
+    logger.debug(f"Received the following message from MQTT: {msg.topic}: {msg.payload}")
+    command=msg.payload.decode('utf-8')
+    global current_profile
+    if msg.topic == mode_topic:
+        if command == "heat" and current_profile == "off":
+            run_bosminer_with_profile("normal")
+        elif command == "off":
+            run_bosminer_with_profile("off")
+        else:
+            logger.warning(f"Received unknown command: {command}")
+    elif msg.topic == fan_topic and command != current_profile:
+        if command in available_profiles:
+            run_bosminer_with_profile(command)
+        else:
+            logger.warning(f"{command} profile is not defined. Ignoring")
+    else:
+        logger.warning(f"Received unknown message {msg.topic}: {command}")
 
 def get_bos_temps(hostname="127.0.0.1", port=4028):
     """ Returns highest values for board and chip temps """
@@ -68,55 +81,18 @@ def get_bos_temps(hostname="127.0.0.1", port=4028):
             max_chip_temp = chip_temp
     return max_board_temp, max_chip_temp
 
+
 def run_bosminer_with_profile(profile):
-    shutil.copy(f'/tmp/{profile}_profile.toml', "/etc/bosminer.toml")
-    subprocess.run(['/etc/init.d/bosminer', 'restart'])
-
-def main(args):
-    """ Main entry point of the app """
-    logger.info("Starting with following parameters")
-    logger.info(args)
-    hostname = socket.gethostname()
-    logger.info("Parsing profiles")
-    available_profiles = generate_all_conf(args)
-    current_profile = "normal"
-    mqtt_prefix = f"bosminer_mqtt/{hostname}"
-    client = mqtt.Client()
-    def on_connect_with_args(*on_connect_args):
-        on_connect(*on_connect_args, args.mqtt_topic)
-        
-    def on_message_with_args(*on_message_args):
-        on_message(*on_message_args)
-
-    client.on_connect = on_connect_with_args
-    client.on_message = on_message_with_args
-
-    client.connect(args.mqtt_broker_host, args.mqtt_broker_port, 60)
-
-    # TODO handle is_idle
-    is_idle = False
-    run_bosminer_with_profile(current_profile)
-
-
-# Blocking call that processes network traffic, dispatches callbacks and
-# handles reconnecting.
-# Other loop*() functions are available that give a threaded interface and a
-# manual interface.
-    client.loop_start()
-    while True:
-        # Get the internal temps
-        """     mode_command_topic: "bosminer_mqtt/ant-sofa-window/mode/set"
-                fan_mode_command_topic: "bosminer_mqtt/ant-sofa-window/fan/set"
-        """
-        if is_idle is False:
-            board_temp, chip_temp = get_bos_temps()
-            client.publish(f"{mqtt_prefix}/status", "heat")
-            client.publish(f"{mqtt_prefix}/status/current_profile", current_profile)
-            client.publish(f"{mqtt_prefix}/status/board_temperature", board_temp)
-            client.publish(f"{mqtt_prefix}/status/chip_temperature", chip_temp)
-        else:
-            client.publish(f"{mqtt_prefix}/status", "idle")
-        time.sleep(10)
+    if profile == "off":
+        subprocess.run(['/etc/init.d/bosminer', 'stop'])
+        subprocess.run(['/etc/init.d/bosminer_monitor', 'stop'])
+    else:
+        shutil.copy(f'/tmp/{profile}_profile.toml', "/etc/bosminer.toml")
+        subprocess.run(['/etc/init.d/bosminer', 'restart'])
+        subprocess.run(['/etc/init.d/bosminer_monitor', 'restart'])
+    global current_profile
+    logger.debug(f"Updating current profile from {current_profile} to {profile}")
+    current_profile=profile
 
 def check_value(value, min, max, allow_zero=True):
     assert value >= min or value <= max or allow_zero == (value == 0 )
@@ -170,7 +146,7 @@ def generate_bosminer_conf(pool_address, pool_username, profile_dict):
     return toml_config
 
 
-def generate_all_conf(args):
+def generate_all_conf(args) -> []:
     """
     Parses the args, generate the confs and returns a list of available profiles
     """
@@ -198,6 +174,62 @@ def generate_all_conf(args):
     return available_profiles
 
 
+def main(args):
+    """ Main entry point of the app """
+    logger.info("Starting with following parameters")
+    logger.info(args)
+    hostname = socket.gethostname()
+    logger.info("Parsing profiles")
+    available_profiles = generate_all_conf(args)
+    available_profiles.append("off")
+
+    start_profile = args.start_profile
+    if start_profile not in available_profiles:
+        raise ValueError("Incorrect start profile: {}".format(start_profile))
+    global current_profile
+    current_profile = start_profile
+
+    mqtt_base_topic = f"{args.mqtt_base_topic}/{hostname}"
+    mqtt_status_topic = f"{mqtt_base_topic}/status"
+    mqtt_mode_topic = f"{mqtt_base_topic}/mode/set"
+    mqtt_fan_topic = f"{mqtt_base_topic}/fan/set"
+    mqtt_set_commands_topics = [ mqtt_mode_topic, mqtt_fan_topic]
+    client = mqtt.Client()
+    def on_connect_with_args(*on_connect_args):
+        on_connect(*on_connect_args, mqtt_set_commands_topics)
+        
+    def on_message_with_args(*on_message_args):
+        on_message(*on_message_args, mqtt_mode_topic, mqtt_fan_topic, available_profiles )
+
+    client.on_connect = on_connect_with_args
+    client.on_message = on_message_with_args
+
+    client.connect(args.mqtt_broker_host, args.mqtt_broker_port, 60)
+
+    run_bosminer_with_profile(current_profile)
+
+
+# Blocking call that processes network traffic, dispatches callbacks and
+# handles reconnecting.
+# Other loop*() functions are available that give a threaded interface and a
+# manual interface.
+    client.loop_start()
+    while True:
+        # Get the internal temps
+        """     mode_command_topic: "bosminer_mqtt/ant-sofa-window/mode/set"
+                fan_mode_command_topic: "bosminer_mqtt/ant-sofa-window/fan/set"
+        """
+        if current_profile == "off":
+            client.publish(f"{mqtt_base_topic}/mode/state", "off")
+        else:
+            board_temp, chip_temp = get_bos_temps()
+            client.publish(f"{mqtt_base_topic}/mode/state", "heat")
+            client.publish(f"{mqtt_base_topic}/fan/state", current_profile)
+            client.publish(f"{mqtt_status_topic}/board_temperature", board_temp)
+            client.publish(f"{mqtt_status_topic}/chip_temperature", chip_temp)
+            
+        time.sleep(10)
+
 
 
 if __name__ == "__main__":
@@ -205,12 +237,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-m", "--mqtt-broker-host", required=True, type=str)
     parser.add_argument("-p", "--mqtt-broker-port", default=1883, type=int)
-    parser.add_argument("-t", "--mqtt-topic", default="bosminer_mqtt", type=str)
-    parser.add_argument("-l", "--low-profile", required=False, help="fan_speed,freq1,volt1,freq2,volt2,freq3,volt3 Example: 45,170,7.95,0,0,170,7.95", type=str)
+    parser.add_argument("-b", "--mqtt-base-topic", default="bos_heater", type=str)
+    parser.add_argument("-q", "--low-profile", required=False, help="fan_speed,freq1,volt1,freq2,volt2,freq3,volt3 Example: 45,170,7.95,0,0,170,7.95", type=str)
     parser.add_argument("-n", "--normal-profile", required=True, help="fan_speed,freq1,volt1,freq2,volt2,freq3,volt3 Example: 60,230,7.95,230,7.95,230,7.95", type=str)
-    parser.add_argument("-c", "--high-profile", required=False, help="fan_speed,freq1,volt1,freq2,volt2,freq3,volt3 Example: 100,270,7.95,270,7.95,270,7.95", type=str)
+    parser.add_argument("-t", "--high-profile", required=False, help="fan_speed,freq1,volt1,freq2,volt2,freq3,volt3 Example: 100,270,7.95,270,7.95,270,7.95", type=str)
     parser.add_argument("-a", "--pool-address", default="stratum+tcp://stratum.slushpool.com:3333", type=str)
     parser.add_argument("-u", "--pool-username", required=True, type=str)
+    parser.add_argument("-s", "--start-profile", required=False, help="name of the profile to start at boot. Default to off", type=str, default="off")
 
     # Optional verbosity counter (eg. -v, -vv, -vvv, etc.)
     parser.add_argument(

@@ -32,16 +32,33 @@ Example of automation.yaml file to do just that:
 ```
 climate:
   - platform: mqtt
-    name: miner
+    name: ant-sofa-window
     modes:
-      - "idle"
-      - "heat"
+      - off
+      - heat
     fan_modes:
-      - "high"
-      - "medium"
-      - "low"
-    mode_command_topic: "bosminer_mqtt/ant-sofa-window/mode/set"
-    temperature_command_topic: "bosminer_mqtt/ant-sofa-window/temperature/set"
-    fan_mode_command_topic: "bosminer_mqtt/ant-sofa-window/fan/set"
+      - high
+      - normal
+      - low
+      - auto
+    mode_command_topic: "bos_heater/ant-sofa-window/mode/set"
+    mode_state_topic: "bos_heater/ant-sofa-window/mode/state"
+    fan_mode_command_topic: "bos_heater/ant-sofa-window/fan/set"
+    fan_mode_state_topic: "bos_heater/ant-sofa-window/fan/state"
+
+  - platform: generic_thermostat
+    name: living room miner
+    heater: climate.ant-sofa-window
+    target_sensor: sensor.ble_temperature_livingroom
+    min_temp: 16
+    max_temp: 23
+    target_temp: 20
+    cold_tolerance: 0.5
+    hot_tolerance: 0.5
+    ac_mode: false
+    min_cycle_duration:
+      minutes: 15
+    precision: 0.1
+    away_temp: 12
 ```
 
