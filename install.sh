@@ -28,4 +28,6 @@ Tune your frequencies voltage so that it's safe.
 Once you found all the correct arguments,
 write it down (space of new line separated) in the file:
 
-/root/bos_heater_mqtt.txt."
+/root/bos_heater_mqtt.txt
+
+Then you can start the daemon with service mqttbos start"
