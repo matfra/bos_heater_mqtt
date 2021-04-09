@@ -18,11 +18,14 @@ wget https://raw.githubusercontent.com/matfra/bos_heater_mqtt/main/mqttbos -O $I
 chmod +x $INITD_FILE
 ln -s $INITD_FILE /etc/rc.d/S99mqttbos
 
-
+echo "Install sucessful
+"
 /root/bos_heater_mqtt.py --help
 
-echo "Now try it in CLI and verify it works properly. 
+echo "
+Now try it in CLI and verify it works properly. 
 Tune your frequencies voltage so that it's safe. 
 Once you found all the correct arguments,
 write it down (space of new line separated) in the file:
+
 /root/bos_heater_mqtt.txt."
