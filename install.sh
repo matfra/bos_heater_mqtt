@@ -1,5 +1,6 @@
 #!/bin/sh -ex
 INSTALL_DIR="/root"
+INITD_FILE="/etc/init.d/mqttbos"
 
 echo "Installing Python"
 opkg update
@@ -12,6 +13,16 @@ echo "Downloading/Updating the bos_miner_mqtt"
 wget https://raw.githubusercontent.com/matfra/bos_heater_mqtt/main/bos_heater_mqtt.py -O $INSTALL_DIR/bos_heater_mqtt.py
 chmod +x bos_heater_mqtt.py
 
-echo "Now try it in CLI and verify it works properly. Tune your frequencies voltage so that it's safe.when you are ready, just run this command to make it start automatically:\necho \"/root/bos_heater_mqtt.py ###ALL your args here###\" > /etc/rc.d/S99bos_heater_mqtt"
+echo "Creating a daemon"
+wget https://raw.githubusercontent.com/matfra/bos_heater_mqtt/main/mqttbos -O $INITD_FILE
+chmod +x $INITD_FILE
+ln -s $INITD_FILE /etc/rc.d/S99mqttbos
+
 
 /root/bos_heater_mqtt.py --help
+
+echo "Now try it in CLI and verify it works properly. 
+Tune your frequencies voltage so that it's safe. 
+Once you found all the correct arguments,
+write it down (space of new line separated) in the file:
+/root/bos_heater_mqtt.txt."

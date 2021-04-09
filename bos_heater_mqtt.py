@@ -15,9 +15,14 @@ from logzero import loglevel
 from logzero import logger
 import toml
 import shutil
+import signal
 
 # Global variable
 current_profile=""
+
+def terminateProcess(signalNumber, frame):
+    print ('(SIGTERM) terminating the process')
+    sys.exit()
 
 def call_bos_api(request_dict, hostname="127.0.0.1", port=4028):
     """
@@ -206,7 +211,13 @@ def main(args):
     client.on_connect = on_connect_with_args
     client.on_message = on_message_with_args
 
-    client.connect(args.mqtt_broker_host, args.mqtt_broker_port, 60)
+    waiting_for_network=True
+    while waiting_for_network is True:
+        try:
+            client.connect(args.mqtt_broker_host, args.mqtt_broker_port, 60)
+            waiting_for_network=False
+        except OSError:
+            time.sleep(1)
 
     run_bosminer_with_profile(current_profile)
 
@@ -267,5 +278,8 @@ if __name__ == "__main__":
         loglevel(level=10)
     else:
         loglevel(level=20)
+
+    signal.signal(signal.SIGTERM, terminateProcess)
+    signal.signal(signal.SIGQUIT, terminateProcess)
 
     main(args)
